@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2306b6d4'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5 7.51-3.22-7.52-3.22 3.22 7.52-3.21-1.08zM12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z'/%3E%3C/svg%3E" />
+    <!-- FontAwesome CDN Added Here -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keenetic Go</title>
+  </head>
+  <body class="bg-slate-900 text-slate-300">
+    <!-- Go template injection -->
+    <script>
+      window.SERVER_DATA = {
+        User: "[[ .User ]]",
+        Host: "[[ .Host ]]",
+        TTL: "[[ .TTL ]]"
+      }
+    </script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
