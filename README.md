@@ -18,11 +18,11 @@ It talks directly to the router over the Keenetic HTTP RCI API and gives you:
 #### 3. Background sync & persistence
 - Optional Auto refresh all routes: when enabled, the backend runs once per day at 00:00 UTC, resolves all domains and updates the routes.
 - All domain routing data (domains, IPs, active flags, selected interface, auto‑refresh setting) is stored in a JSON file on a Docker volume, so configuration survives container restarts.
-
-In short, keenetic-go-vpn is a lightweight Keenetic web UI tailored for VPN routing and domain‑based rules, without requiring firmware mods or SSH access — everything works over the official RCI HTTP API.
+#### 4. No session expiration every 10 minutes
+- This is an annoying limitation in the original web panel. With `keenetic-go-vpn` you can control the session lifetime via `.env` and keep the browser tab open as long as you want.
 
 ### Stack
-Backend: Go (keenetic-go-vpn module), Gin, Keenetic RCI client (HTTP + batch RCI calls).
+Backend: Go, Gin, Keenetic RCI client (HTTP + batch RCI calls). ~7 Mb RAM.
 
 Frontend: Vue 3 + Tailwind CSS, single‑page UI.
 
