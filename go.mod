@@ -1,4 +1,4 @@
-module keenetic-manager
+module keenetic-go-vpn
 
 go 1.21
 

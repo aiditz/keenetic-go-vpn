@@ -2,10 +2,10 @@
   <div class="flex flex-col h-full space-y-4">
     <!-- Top controls -->
     <div
-      class="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center"
+      class="flex flex-col lg:flex-row justify-between gap-4 items-start lg:items-center"
     >
-      <!-- Interface selector + auto-refresh toggle -->
-      <div class="space-y-3 w-full md:w-auto">
+      <!-- Interface selector + auto-refresh -->
+      <div class="space-y-3 w-full lg:w-auto">
         <div class="space-y-2">
           <div class="text-sm text-slate-400 font-medium">
             Interface for domain routes
@@ -14,7 +14,7 @@
             <select
               v-model="selectedInterface"
               @change="onInterfaceChange"
-              class="bg-slate-900 border border-slate-600 text-slate-200 text-sm px-3 py-2 rounded-md focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 min-w-[220px]"
+              class="bg-slate-900 border border-slate-600 text-slate-200 text-sm px-3 py-2 rounded-md focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 min-w-[240px]"
             >
               <option value="" disabled>Select interface...</option>
               <option
@@ -56,14 +56,14 @@
         </div>
       </div>
 
-      <!-- Add domain + Sync All -->
-      <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-        <div class="flex items-center gap-2 flex-1">
+      <!-- Add domain + bulk buttons -->
+      <div class="flex flex-col gap-2 w-full lg:w-auto">
+        <div class="flex items-center gap-2 w-full">
           <input
             v-model="newDomainInput"
             type="text"
             placeholder="example.com or https://example.com/path"
-            class="flex-1 bg-slate-900 border border-slate-600 text-slate-200 px-3 py-2 rounded-md focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 placeholder-slate-600"
+            class="flex-1 bg-slate-900 border border-slate-600 text-slate-200 px-3 py-2 rounded-md focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 placeholder-slate-600 md:w-[380px]"
             @keyup.enter="addDomain"
           />
           <button
@@ -76,11 +76,38 @@
             <span>Add domain</span>
           </button>
         </div>
-        <div class="flex items-center">
+
+        <div
+          class="flex flex-wrap gap-2 text-xs w-full justify-start lg:justify-end"
+        >
+          <button
+            @click="activateAll"
+            :disabled="bulkLoading || !domains.length || !selectedInterface"
+            class="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-md shadow shadow-emerald-700/40 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i
+              v-if="bulkLoading && bulkMode === 'activate'"
+              class="fa-solid fa-circle-notch fa-spin"
+            ></i>
+            <i v-else class="fa-solid fa-toggle-on"></i>
+            <span>Activate All</span>
+          </button>
+          <button
+            @click="deactivateAll"
+            :disabled="bulkLoading || !domains.length"
+            class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-md border border-slate-600 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i
+              v-if="bulkLoading && bulkMode === 'deactivate'"
+              class="fa-solid fa-circle-notch fa-spin"
+            ></i>
+            <i v-else class="fa-solid fa-toggle-off"></i>
+            <span>Deactivate All</span>
+          </button>
           <button
             @click="syncAll"
             :disabled="syncAllLoading || !domains.length || !selectedInterface"
-            class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-md shadow-lg shadow-emerald-600/20 text-xs flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-md shadow shadow-emerald-600/40 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i
               v-if="syncAllLoading"
@@ -113,16 +140,17 @@
             class="bg-slate-900/70 text-slate-400 text-xs uppercase font-bold tracking-wider sticky top-0 z-10 backdrop-blur"
           >
             <tr>
+              <th class="p-2 w-16 text-center">Active</th>
               <th class="p-2">Domain</th>
               <th class="p-2">IP addresses</th>
               <th class="p-2 w-40">Last lookup</th>
-              <th class="p-2 w-48 text-center">Actions</th>
+              <th class="p-2 w-56 text-center">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-700 text-sm">
             <tr v-if="!domains.length && !loading">
               <td
-                colspan="4"
+                colspan="5"
                 class="p-4 text-center text-slate-500 text-xs"
               >
                 No domains configured. Add one above to start routing by
@@ -135,6 +163,18 @@
               :key="entry.domain"
               class="hover:bg-slate-700/40 transition group align-top"
             >
+              <!-- Active -->
+              <td class="p-2 align-middle text-center">
+                <input
+                  type="checkbox"
+                  :checked="isActive(entry)"
+                  @change="toggleActive(entry, $event)"
+                  :disabled="isBusy(entry.domain)"
+                  class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-600"
+                  :title="isActive(entry) ? 'Deactivate routes' : 'Activate routes'"
+                />
+              </td>
+
               <!-- Domain -->
               <td class="p-2 align-middle">
                 <div class="font-medium text-slate-200 text-sm">
@@ -145,6 +185,12 @@
                   class="text-[10px] text-emerald-400 mt-0.5"
                 >
                   Applied via: {{ entry.applied_interface }}
+                </div>
+                <div
+                  v-if="!isActive(entry)"
+                  class="text-[10px] text-slate-500 mt-0.5 italic"
+                >
+                  Inactive (routes removed)
                 </div>
               </td>
 
@@ -216,7 +262,7 @@
                   <button
                     class="px-2 py-1 rounded bg-slate-900 border border-emerald-600 text-emerald-300 hover:bg-emerald-600/10 transition"
                     @click="applyDomain(entry)"
-                    :disabled="isBusy(entry.domain) || !selectedInterface"
+                    :disabled="isBusy(entry.domain) || !selectedInterface || !isActive(entry)"
                     title="Apply routes on router"
                   >
                     <i class="fa-solid fa-upload"></i>
@@ -332,6 +378,8 @@ const loading = ref(false)
 const ifaceSaving = ref(false)
 const adding = ref(false)
 const syncAllLoading = ref(false)
+const bulkLoading = ref(false)
+const bulkMode = ref('') // 'activate' | 'deactivate' | ''
 
 const newDomainInput = ref('')
 const actionStatus = reactive({})
@@ -373,7 +421,6 @@ const setActionStatus = (domain, status) => {
   }
 }
 
-// Extract domain from either plain domain or URL
 const extractDomain = (input) => {
   const s = (input || '').trim()
   if (!s) return ''
@@ -381,14 +428,11 @@ const extractDomain = (input) => {
     const url = s.includes('://') ? new URL(s) : new URL('http://' + s)
     return url.hostname.toLowerCase()
   } catch {
-    // fallback: take part before first slash
     return s.split('/')[0].toLowerCase()
   }
 }
 
-const formatLastLookup = (iso) => {
-  return formatTimeAgoFromISO(iso)
-}
+const formatLastLookup = (iso) => formatTimeAgoFromISO(iso)
 
 const upsertDomainEntry = (entry) => {
   const idx = domains.value.findIndex(
@@ -400,6 +444,8 @@ const upsertDomainEntry = (entry) => {
     domains.value[idx] = entry
   }
 }
+
+const isActive = (entry) => !entry.disabled
 
 const fetchData = async () => {
   loading.value = true
@@ -557,6 +603,10 @@ const applyDomain = async (entry) => {
     alert('Select interface first')
     return
   }
+  if (!isActive(entry)) {
+    alert('Domain is inactive. Activate it first.')
+    return
+  }
   setActionStatus(domain, { loading: true })
   try {
     const res = await fetch('/api/routes/domain/apply', {
@@ -601,6 +651,33 @@ const deleteDomain = async (entry) => {
   }
 }
 
+const toggleActive = async (entry, event) => {
+  const domain = entry.domain
+  const active = event.target.checked
+  setActionStatus(domain, { loading: true })
+  try {
+    const res = await fetch('/api/routes/domain/active', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain, active }),
+    })
+    if (!res.ok) throw new Error('Failed to set active flag')
+    const data = await res.json()
+    if (data.entry) {
+      upsertDomainEntry(data.entry)
+    } else {
+      await fetchData()
+    }
+    setActionStatus(domain, { loading: false, success: true })
+  } catch (e) {
+    console.error(e)
+    setActionStatus(domain, { loading: false, error: true })
+    // revert UI state
+    event.target.checked = !active
+    alert('Failed to update active state')
+  }
+}
+
 const syncAll = async () => {
   if (!selectedInterface.value || !domains.value.length) return
   syncAllLoading.value = true
@@ -622,6 +699,59 @@ const syncAll = async () => {
     alert('Failed to sync all domains')
   } finally {
     syncAllLoading.value = false
+  }
+}
+
+const activateAll = async () => {
+  if (!selectedInterface.value || !domains.value.length) return
+  bulkLoading.value = true
+  bulkMode.value = 'activate'
+  try {
+    const res = await fetch('/api/routes/activate_all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    if (!res.ok) throw new Error('Failed to activate all')
+    const data = await res.json()
+    if (data.entries) {
+      domains.value = data.entries
+    } else {
+      await fetchData()
+    }
+  } catch (e) {
+    console.error(e)
+    alert('Failed to activate all domains')
+  } finally {
+    bulkLoading.value = false
+    bulkMode.value = ''
+  }
+}
+
+const deactivateAll = async () => {
+  if (!domains.value.length) return
+  if (!confirm('Deactivate all domains (remove all routes)?')) return
+  bulkLoading.value = true
+  bulkMode.value = 'deactivate'
+  try {
+    const res = await fetch('/api/routes/deactivate_all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    if (!res.ok) throw new Error('Failed to deactivate all')
+    const data = await res.json()
+    if (data.entries) {
+      domains.value = data.entries
+    } else {
+      await fetchData()
+    }
+  } catch (e) {
+    console.error(e)
+    alert('Failed to deactivate all domains')
+  } finally {
+    bulkLoading.value = false
+    bulkMode.value = ''
   }
 }
 
