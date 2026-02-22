@@ -1,19 +1,49 @@
-## Installation
+## Description 
+
+`keenetic-go-vpn` is an alternative web control panel for Keenetic routers, focused on fine‑grained control of internet access and VPN routing.
+
+It talks directly to the router over the Keenetic HTTP RCI API and gives you:
+
+#### 1. Device management UI
+- Per‑device internet access control (permit/deny)
+- Per‑device IP policy selection (e.g. “NoVPN”), with persistent config save
+#### 2. Domain‑based VPN routing
+- Dedicated page to manage a list of domains and route their traffic via a chosen router interface (e.g. Wireguard0).
+- For each domain:
+- - Automatic nslookup to resolve current IPv4 addresses.
+- - Manual IP override/edit.
+- - One‑click “Apply” to create/update routes on the router.
+- Routes are created via ip/route with aggregated comments like: "[GOVPN] example.com, other.example.com".
+- “Sync All” button to re‑resolve all domains and update routes on the router.
+#### 3. Background sync & persistence
+- Optional Auto refresh all routes: when enabled, the backend runs once per day at 00:00 UTC, resolves all domains and updates the routes.
+- All domain routing data (domains, IPs, active flags, selected interface, auto‑refresh setting) is stored in a JSON file on a Docker volume, so configuration survives container restarts.
+
+In short, keenetic-go-vpn is a lightweight Keenetic web UI tailored for VPN routing and domain‑based rules, without requiring firmware mods or SSH access — everything works over the official RCI HTTP API.
+
+### Stack
+Backend: Go (keenetic-go-vpn module), Gin, Keenetic RCI client (HTTP + batch RCI calls).
+
+Frontend: Vue 3 + Tailwind CSS, single‑page UI.
+
+## Installation with Docker
 
 Clone the repo:
-```
+```bash
 git clone https://github.com/aiditz/keenetic-go-vpn.git
 cd keenetic-go-vpn
 cp .env.example .env
 ```
-Set up your passwords: 
-```
+Configure your credentials:
+```bash
 nano .env
 ```
 
-Run container:
-```
+Run the container:
+```bash
 docker-compose up -d --build
 ```
 
-You are perfect now.
+Open http://localhost:800.
+
+You’re all set!
