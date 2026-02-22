@@ -30,7 +30,7 @@ Frontend: Vue 3 + Tailwind CSS, single‑page UI.
 
 Clone the repo:
 ```bash
-git clone https://github.com/aiditz/keenetic-go-vpn.git
+git clone https://github.com/vmuromskii/keenetic-go-vpn.git
 cd keenetic-go-vpn
 cp .env.example .env
 ```
