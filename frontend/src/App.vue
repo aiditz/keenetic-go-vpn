@@ -50,7 +50,7 @@
           <span class="text-sm font-medium text-slate-200">{{ user }}</span>
         </div>
         <button
-          @click="logout"
+          @click="doLogout"
           class="text-slate-400 hover:text-red-400 transition duration-200"
           title="Logout"
         >
@@ -63,27 +63,44 @@
     <main
       class="flex-1 overflow-hidden flex flex-col p-4 max-w-7xl mx-auto w-full"
     >
-      <component :is="currentComponent" />
+      <component
+        v-if="isAuthenticated"
+        :is="currentComponent"
+        :key="componentKey"
+      />
+      <div
+        v-else
+        class="flex-1 flex items-center justify-center text-slate-500 text-sm"
+      >
+        Please log in to access the panel.
+      </div>
     </main>
+
+    <!-- Login modal component -->
+    <LoginModal
+      v-model:visible="showLoginModal"
+      :defaultUser="user"
+      @login-success="onLoginSuccess"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import DevicesPage from './components/DevicesPage.vue'
 import DomainRoutesPage from './components/DomainRoutesPage.vue'
+import LoginModal from './components/LoginModal.vue'
 
-// Server data from index.html
 const user = window.SERVER_DATA?.User || 'Admin'
 const host = window.SERVER_DATA?.Host || 'Keenetic'
-const ttlStr = window.SERVER_DATA?.TTL || '24h'
+const ttlStr = window.SERVER_DATA?.TTL || '24h' // informational only
 
-// Page state
-const currentPage = ref('devices') // default page is Devices
-
+// Page switching
+const currentPage = ref('devices') // default
 const currentComponent = computed(() =>
   currentPage.value === 'devices' ? DevicesPage : DomainRoutesPage
 )
+const componentKey = ref(0)
 
 const navClass = (page) =>
   [
@@ -93,46 +110,73 @@ const navClass = (page) =>
       : 'text-slate-400 hover:text-white hover:bg-slate-700/60',
   ].join(' ')
 
-// Session / logout
-const parseTTL = (s) => {
-  if (s.endsWith('h')) return parseInt(s) * 60 * 60 * 1000
-  if (s.endsWith('m')) return parseInt(s) * 60 * 1000
-  return 24 * 60 * 60 * 1000
-}
-const SESSION_MS = parseTTL(ttlStr)
-let sessionTimer = null
-
-const logout = () => {
-  const url = new URL(window.location.href)
-  url.username = 'logout'
-  url.password = 'logout'
-  window.location.href = url.href
-}
-
-const resetSession = () => {
-  if (sessionTimer) clearTimeout(sessionTimer)
-  sessionTimer = setTimeout(logout, SESSION_MS)
-}
-
 const setPage = (page) => {
   if (page !== 'devices' && page !== 'routes') return
   currentPage.value = page
-  resetSession()
 }
 
-const onUserActivity = () => {
-  resetSession()
+// Auth state
+const isAuthenticated = ref(false)
+const showLoginModal = ref(false)
+
+// Global fetch interceptor: on 401 show login
+const installFetchInterceptor = () => {
+  if (!window.__KGOVPN_FETCH_PATCHED__) {
+    const origFetch = window.fetch.bind(window)
+    window.fetch = async (...args) => {
+      const res = await origFetch(...args)
+      if (res.status === 401) {
+        isAuthenticated.value = false
+        showLoginModal.value = true
+      }
+      return res
+    }
+    window.__KGOVPN_FETCH_PATCHED__ = true
+  }
+}
+
+const checkAuth = async () => {
+  try {
+    const res = await fetch('/api/data')
+    if (res.ok) {
+      isAuthenticated.value = true
+      showLoginModal.value = false
+      componentKey.value++
+    } else if (res.status === 401) {
+      isAuthenticated.value = false
+      showLoginModal.value = true
+    } else {
+      isAuthenticated.value = false
+      showLoginModal.value = true
+    }
+  } catch (e) {
+    console.error(e)
+    isAuthenticated.value = false
+    showLoginModal.value = true
+  }
+}
+
+const onLoginSuccess = () => {
+  isAuthenticated.value = true
+  showLoginModal.value = false
+  // Remount current page to trigger its onMounted fetch
+  componentKey.value++
+}
+
+const doLogout = async () => {
+  try {
+    await fetch('/api/logout', { method: 'POST' })
+  } catch (e) {
+    console.error(e)
+  } finally {
+    isAuthenticated.value = false
+    showLoginModal.value = true
+    componentKey.value++
+  }
 }
 
 onMounted(() => {
-  window.addEventListener('click', onUserActivity)
-  window.addEventListener('keydown', onUserActivity)
-  resetSession()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('click', onUserActivity)
-  window.removeEventListener('keydown', onUserActivity)
-  if (sessionTimer) clearTimeout(sessionTimer)
+  installFetchInterceptor()
+  checkAuth()
 })
 </script>

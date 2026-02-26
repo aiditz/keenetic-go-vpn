@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"keenetic-go-vpn/internal/auth"
 	"keenetic-go-vpn/internal/config"
 	dev "keenetic-go-vpn/internal/devices"
 	rt "keenetic-go-vpn/internal/routes"
@@ -19,9 +20,12 @@ func NewServer(cfg config.Config, routerClient *keenetic.Client) *gin.Engine {
 	r.Static("/assets", "./static/assets")
 	r.LoadHTMLFiles("./static/index.html")
 
-	auth := gin.BasicAuth(gin.Accounts{cfg.WebUser: cfg.WebPass})
+	// Session manager + auth handlers
+	sessMgr := auth.NewManager(cfg)
+	authHandler := auth.NewHandler(sessMgr)
 
-	r.GET("/", auth, func(c *gin.Context) {
+	// Public routes
+	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"User": cfg.WebUser,
 			"Host": cfg.RouterIP,
@@ -29,15 +33,22 @@ func NewServer(cfg config.Config, routerClient *keenetic.Client) *gin.Engine {
 		})
 	})
 
-	api := r.Group("/api", auth)
+	publicAPI := r.Group("/api")
+	{
+		publicAPI.POST("/login", authHandler.Login)
+		publicAPI.POST("/logout", authHandler.Logout)
+	}
+
+	// Protected API (requires session cookie)
+	protected := r.Group("/api", sessMgr.Middleware())
 	{
 		devicesHandler := dev.NewHandler(routerClient)
-		api.GET("/data", devicesHandler.GetDevices)
-		api.POST("/policy", devicesHandler.SetPolicy)
-		api.POST("/static_ip", devicesHandler.SetStaticIP)
+		protected.GET("/data", devicesHandler.GetDevices)
+		protected.POST("/policy", devicesHandler.SetPolicy)
+		protected.POST("/static_ip", devicesHandler.SetStaticIP)
 
 		routesHandler := rt.NewHandler(routerClient)
-		routes := api.Group("/routes")
+		routes := protected.Group("/routes")
 		{
 			routes.GET("/data", routesHandler.GetData)
 			routes.POST("/interface", routesHandler.SetInterface)

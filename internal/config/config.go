@@ -3,7 +3,6 @@
 import (
 	"log"
 	"os"
-	"time"
 )
 
 type Config struct {
@@ -36,14 +35,14 @@ func Load() Config {
 	if cfg.WebUser == "" {
 		log.Fatal("WEB_USER required")
 	}
-	if cfg.WebTTL == "" {
-		cfg.WebTTL = "24h"
+	if cfg.WebPass == "" {
+		log.Fatal("WEB_PASS required")
 	}
-	if _, err := time.ParseDuration(cfg.WebTTL); err != nil {
-		cfg.WebTTL = "24h"
+	if cfg.WebTTL == "" {
+		log.Fatal("WEB_SESSION_TTL required")
 	}
 	if cfg.HTTPPort == "" {
-		cfg.HTTPPort = "800"
+		cfg.HTTPPort = "8000"
 	}
 	if cfg.DomainStorePath == "" {
 		cfg.DomainStorePath = "/data/domains.json"
