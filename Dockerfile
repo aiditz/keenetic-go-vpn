@@ -6,6 +6,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY --exclude=frontend . .
+RUN ls
 
 RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -o keenetic-go-vpn ./cmd/keenetic-go-vpn
@@ -27,5 +28,5 @@ WORKDIR /root/
 COPY --from=backend /app/keenetic-go-vpn .
 COPY --from=frontend /frontend/dist ./static
 
-EXPOSE 800
+EXPOSE 8000
 CMD ["./keenetic-go-vpn"]

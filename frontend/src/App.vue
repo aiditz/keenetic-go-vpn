@@ -76,7 +76,7 @@
       </div>
     </main>
 
-    <!-- Login modal component -->
+    <!-- Login modal -->
     <LoginModal
       v-model:visible="showLoginModal"
       :defaultUser="user"
@@ -86,17 +86,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import DevicesPage from './components/DevicesPage.vue'
 import DomainRoutesPage from './components/DomainRoutesPage.vue'
 import LoginModal from './components/LoginModal.vue'
 
 const user = window.SERVER_DATA?.User || 'Admin'
 const host = window.SERVER_DATA?.Host || 'Keenetic'
-const ttlStr = window.SERVER_DATA?.TTL || '24h' // informational only
+const ttlStr = window.SERVER_DATA?.TTL || '24h' // informational
 
-// Page switching
-const currentPage = ref('devices') // default
+// --- Simple hash-based routing between main tabs ---
+
+const allowedPages = ['devices', 'routes']
+
+const getPageFromHash = () => {
+  const hash = window.location.hash.replace('#', '').toLowerCase()
+  return allowedPages.includes(hash) ? hash : 'devices'
+}
+
+const currentPage = ref(getPageFromHash())
+
 const currentComponent = computed(() =>
   currentPage.value === 'devices' ? DevicesPage : DomainRoutesPage
 )
@@ -111,11 +120,23 @@ const navClass = (page) =>
   ].join(' ')
 
 const setPage = (page) => {
-  if (page !== 'devices' && page !== 'routes') return
+  if (!allowedPages.includes(page)) return
   currentPage.value = page
+  const targetHash = '#' + page
+  if (window.location.hash !== targetHash) {
+    window.location.hash = targetHash
+  }
 }
 
-// Auth state
+const onHashChange = () => {
+  const page = getPageFromHash()
+  if (page !== currentPage.value) {
+    currentPage.value = page
+  }
+}
+
+// --- Auth state ---
+
 const isAuthenticated = ref(false)
 const showLoginModal = ref(false)
 
@@ -159,7 +180,6 @@ const checkAuth = async () => {
 const onLoginSuccess = () => {
   isAuthenticated.value = true
   showLoginModal.value = false
-  // Remount current page to trigger its onMounted fetch
   componentKey.value++
 }
 
@@ -177,6 +197,18 @@ const doLogout = async () => {
 
 onMounted(() => {
   installFetchInterceptor()
+  window.addEventListener('hashchange', onHashChange)
+
+  // ensure we start from correct tab based on hash
+  const initialPage = getPageFromHash()
+  if (initialPage !== currentPage.value) {
+    currentPage.value = initialPage
+  }
+
   checkAuth()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('hashchange', onHashChange)
 })
 </script>
