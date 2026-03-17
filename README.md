@@ -2,6 +2,11 @@
 
 `keenetic-go-vpn` is an alternative web control panel for Keenetic routers, focused on fine‑grained control of internet access and VPN routing.
 
+<img width="1916" height="870" alt="image" src="https://github.com/user-attachments/assets/b93215ab-6e56-44ab-ba91-5b70c3ee4932" />
+
+<img width="1913" height="876" alt="image" src="https://github.com/user-attachments/assets/b26b0796-14ca-4f49-b413-acc0c00f8ea7" />
+
+
 It talks directly to the router over the Keenetic HTTP RCI API and gives you:
 
 #### 1. Device management UI
@@ -43,7 +48,14 @@ Run the container:
 ```bash
 docker-compose up -d --build
 ```
-
 Open http://localhost:800.
 
 You’re all set!
+
+## Known issues
+- UI is not optimized for mobile devices
+- Daily background DNS sync task does not update the `Last lookup` fields
+- Undefined behaviour if you change the `interface for domain routes` after adding domains; please select the VPN interface once and don't change it
+
+## Contribution
+I would appreciate any bug fixes and improvements.
